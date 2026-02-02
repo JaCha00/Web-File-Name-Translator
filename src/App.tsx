@@ -5,10 +5,11 @@ import { DropZone } from './components/DropZone';
 import { RuleManager } from './components/RuleManager';
 import { ImageList } from './components/ImageList';
 import { useImageProcessor } from './hooks/useImageProcessor';
-import { KeywordRule, FilterMode, LIMITS, ProcessingProgress } from './types';
+import { KeywordRule, FilterMode, LIMITS, ProcessingProgress, PartialMatchSettings, DEFAULT_PARTIAL_MATCH_SETTINGS, MatchCandidate } from './types';
 import { formatFileSize } from './utils/thumbnail';
 
 const STORAGE_KEY = 'image-renamer-rules-v2';
+const PARTIAL_MATCH_STORAGE_KEY = 'image-renamer-partial-match-settings';
 
 export function App() {
   const [rules, setRules] = useState<KeywordRule[]>(() => {
@@ -17,6 +18,14 @@ export function App() {
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
+    }
+  });
+  const [partialMatchSettings, setPartialMatchSettings] = useState<PartialMatchSettings>(() => {
+    try {
+      const saved = localStorage.getItem(PARTIAL_MATCH_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : DEFAULT_PARTIAL_MATCH_SETTINGS;
+    } catch {
+      return DEFAULT_PARTIAL_MATCH_SETTINGS;
     }
   });
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
@@ -32,6 +41,7 @@ export function App() {
     removeMultipleImages,
     clearAllImages,
     clearUnmatchedImages,
+    selectMatchForImage,
   } = useImageProcessor();
 
   // 규칙 변경 시 localStorage에 저장 및 이미지에 적용
@@ -41,15 +51,24 @@ export function App() {
     } catch (e) {
       console.warn('규칙 저장 실패:', e);
     }
-    applyRules(rules);
-  }, [rules, applyRules]);
+    applyRules(rules, partialMatchSettings);
+  }, [rules, applyRules, partialMatchSettings]);
+
+  // 부분 매칭 설정 변경 시 localStorage에 저장
+  useEffect(() => {
+    try {
+      localStorage.setItem(PARTIAL_MATCH_STORAGE_KEY, JSON.stringify(partialMatchSettings));
+    } catch (e) {
+      console.warn('부분 매칭 설정 저장 실패:', e);
+    }
+  }, [partialMatchSettings]);
 
   // 이미지 추가 시 규칙 적용
   useEffect(() => {
     if (images.length > 0) {
-      applyRules(rules);
+      applyRules(rules, partialMatchSettings);
     }
-  }, [images.length, applyRules, rules]);
+  }, [images.length, applyRules, rules, partialMatchSettings]);
 
   // 규칙별 매칭 카운트 계산
   const matchCounts = useMemo(() => {
@@ -198,10 +217,12 @@ export function App() {
           {/* 좌측: 설정 영역 (2/5) */}
           <div className="lg:col-span-2 space-y-4">
             {/* 규칙 관리 */}
-            <RuleManager 
-              rules={rules} 
-              onRulesChange={setRules} 
+            <RuleManager
+              rules={rules}
+              onRulesChange={setRules}
               matchCounts={matchCounts}
+              partialMatchSettings={partialMatchSettings}
+              onPartialMatchSettingsChange={setPartialMatchSettings}
             />
 
             {/* 파일 업로드 */}
@@ -334,12 +355,13 @@ export function App() {
               </svg>
               업로드된 이미지
             </h3>
-            <ImageList 
-              images={images} 
+            <ImageList
+              images={images}
               onRemove={removeImage}
               onRemoveMultiple={removeMultipleImages}
               filterMode={filterMode}
               onFilterChange={setFilterMode}
+              onSelectMatch={selectMatchForImage}
             />
           </div>
         </div>

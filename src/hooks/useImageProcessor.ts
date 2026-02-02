@@ -1,8 +1,41 @@
 import { useState, useCallback, useRef } from 'react';
 import exifr from 'exifr';
-import { ImageFile, KeywordRule, ProcessingProgress, LIMITS } from '../types';
+import { ImageFile, KeywordRule, ProcessingProgress, LIMITS, PartialMatchSettings, MatchCandidate } from '../types';
 import { parsePngTextChunks } from '../utils/pngParser';
 import { createThumbnail } from '../utils/thumbnail';
+
+// 키워드를 토큰으로 분리
+const tokenizeKeyword = (keyword: string, separator: string): string[] => {
+  return keyword
+    .split(separator)
+    .map(token => token.trim())
+    .filter(token => token.length > 0);
+};
+
+// 부분 매칭 점수 계산
+const calculatePartialMatchScore = (
+  keyword: string,
+  fieldValue: string,
+  separator: string
+): { score: number; matchedTokens: string[]; totalTokens: number } => {
+  const tokens = tokenizeKeyword(keyword, separator);
+  if (tokens.length === 0) {
+    return { score: 0, matchedTokens: [], totalTokens: 0 };
+  }
+
+  const matchedTokens: string[] = [];
+  for (const token of tokens) {
+    if (fieldValue.includes(token)) {
+      matchedTokens.push(token);
+    }
+  }
+
+  return {
+    score: matchedTokens.length / tokens.length,
+    matchedTokens,
+    totalTokens: tokens.length,
+  };
+};
 
 export function useImageProcessor() {
   const [images, setImages] = useState<ImageFile[]>([]);
@@ -155,32 +188,136 @@ export function useImageProcessor() {
     setProgress(null);
   }, [images.length]);
 
-  const applyRules = useCallback((rules: KeywordRule[]) => {
+  const applyRules = useCallback((
+    rules: KeywordRule[],
+    partialMatchSettings?: PartialMatchSettings
+  ) => {
     setImages((prev) =>
       prev.map((img) => {
         const metadataEntries = Object.entries(img.metadata);
         if (metadataEntries.length === 0) {
-          return { ...img, matchedRule: null, matchedField: null, newFileName: null };
+          return {
+            ...img,
+            matchedRule: null,
+            matchedField: null,
+            newFileName: null,
+            matchScore: undefined,
+            candidateMatches: undefined,
+            isPartialMatch: undefined,
+          };
         }
 
         const enabledRules = rules.filter((r) => r.enabled);
-        
+        const allCandidates: MatchCandidate[] = [];
+
+        // 1단계: 완전 일치 검색 (기존 로직)
         for (const rule of enabledRules) {
           for (const [fieldName, fieldValue] of metadataEntries) {
             if (fieldValue.includes(rule.keyword)) {
               const ext = img.originalName.split('.').pop() || 'jpg';
               const baseName = rule.newFileName.replace(/\.[^.]+$/, '');
+
+              // 완전 일치는 바로 반환 (가장 높은 우선순위)
               return {
                 ...img,
                 matchedRule: rule,
                 matchedField: fieldName,
                 newFileName: `${baseName}.${ext}`,
+                matchScore: 1.0,
+                candidateMatches: undefined,
+                isPartialMatch: false,
               };
             }
           }
         }
 
-        return { ...img, matchedRule: null, matchedField: null, newFileName: null };
+        // 2단계: 부분 매칭 검색 (설정이 활성화된 경우)
+        if (partialMatchSettings?.globalEnabled) {
+          const separator = partialMatchSettings.tokenSeparator || ',';
+          const minRatio = partialMatchSettings.minMatchRatio || 0.7;
+
+          for (const rule of enabledRules) {
+            // 전역 부분 매칭이 켜져 있거나, 개별 규칙의 부분 매칭이 켜져 있는 경우
+            const isPartialMatchEnabled = partialMatchSettings.globalEnabled || rule.partialMatch;
+            if (!isPartialMatchEnabled) continue;
+
+            for (const [fieldName, fieldValue] of metadataEntries) {
+              const { score, matchedTokens, totalTokens } = calculatePartialMatchScore(
+                rule.keyword,
+                fieldValue,
+                separator
+              );
+
+              // 최소 일치율을 넘는 경우 후보에 추가
+              if (score >= minRatio && score < 1.0) {
+                allCandidates.push({
+                  rule,
+                  matchedField: fieldName,
+                  matchScore: score,
+                  matchedTokens,
+                  totalTokens,
+                });
+              }
+            }
+          }
+        } else {
+          // 전역 부분 매칭이 꺼져 있더라도, 개별 규칙에서 부분 매칭이 켜져 있는 경우 처리
+          const separator = partialMatchSettings?.tokenSeparator || ',';
+          const minRatio = partialMatchSettings?.minMatchRatio || 0.7;
+
+          for (const rule of enabledRules) {
+            if (!rule.partialMatch) continue;
+
+            for (const [fieldName, fieldValue] of metadataEntries) {
+              const { score, matchedTokens, totalTokens } = calculatePartialMatchScore(
+                rule.keyword,
+                fieldValue,
+                separator
+              );
+
+              if (score >= minRatio && score < 1.0) {
+                allCandidates.push({
+                  rule,
+                  matchedField: fieldName,
+                  matchScore: score,
+                  matchedTokens,
+                  totalTokens,
+                });
+              }
+            }
+          }
+        }
+
+        // 부분 매칭 후보가 있는 경우
+        if (allCandidates.length > 0) {
+          // 점수 순으로 정렬 (높은 점수 우선)
+          allCandidates.sort((a, b) => b.matchScore - a.matchScore);
+
+          // 가장 높은 점수의 후보를 기본 매칭으로 설정
+          const bestMatch = allCandidates[0];
+          const ext = img.originalName.split('.').pop() || 'jpg';
+          const baseName = bestMatch.rule.newFileName.replace(/\.[^.]+$/, '');
+
+          return {
+            ...img,
+            matchedRule: bestMatch.rule,
+            matchedField: bestMatch.matchedField,
+            newFileName: `${baseName}.${ext}`,
+            matchScore: bestMatch.matchScore,
+            candidateMatches: allCandidates.length > 1 ? allCandidates : undefined,
+            isPartialMatch: true,
+          };
+        }
+
+        return {
+          ...img,
+          matchedRule: null,
+          matchedField: null,
+          newFileName: null,
+          matchScore: undefined,
+          candidateMatches: undefined,
+          isPartialMatch: undefined,
+        };
       })
     );
   }, []);
@@ -230,6 +367,27 @@ export function useImageProcessor() {
     });
   }, []);
 
+  // 특정 이미지의 매칭 규칙을 수동으로 선택
+  const selectMatchForImage = useCallback((imageId: string, candidate: MatchCandidate) => {
+    setImages((prev) =>
+      prev.map((img) => {
+        if (img.id !== imageId) return img;
+
+        const ext = img.originalName.split('.').pop() || 'jpg';
+        const baseName = candidate.rule.newFileName.replace(/\.[^.]+$/, '');
+
+        return {
+          ...img,
+          matchedRule: candidate.rule,
+          matchedField: candidate.matchedField,
+          newFileName: `${baseName}.${ext}`,
+          matchScore: candidate.matchScore,
+          isPartialMatch: candidate.matchScore < 1.0,
+        };
+      })
+    );
+  }, []);
+
   return {
     images,
     isProcessing,
@@ -240,6 +398,7 @@ export function useImageProcessor() {
     removeMultipleImages,
     clearAllImages,
     clearUnmatchedImages,
+    selectMatchForImage,
     totalSize: totalSizeRef.current,
   };
 }

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useCallback } from 'react';
-import { ImageFile, FilterMode, LIMITS } from '../types';
+import { ImageFile, FilterMode, LIMITS, MatchCandidate } from '../types';
 import { cn } from '../utils/cn';
 import { formatFileSize } from '../utils/thumbnail';
 
@@ -9,6 +9,7 @@ interface ImageListProps {
   onRemoveMultiple: (ids: Set<string>) => void;
   filterMode: FilterMode;
   onFilterChange: (mode: FilterMode) => void;
+  onSelectMatch: (imageId: string, candidate: MatchCandidate) => void;
 }
 
 // 페이지네이션 상수
@@ -199,17 +200,20 @@ function MetadataViewer({ metadata, matchedField, matchedKeyword }: {
   );
 }
 
-function ImageItem({ 
-  img, 
-  isSelected, 
-  onToggleSelect, 
-  onRemove 
-}: { 
-  img: ImageFile; 
-  isSelected: boolean; 
+function ImageItem({
+  img,
+  isSelected,
+  onToggleSelect,
+  onRemove,
+  onSelectMatch,
+}: {
+  img: ImageFile;
+  isSelected: boolean;
   onToggleSelect: () => void;
   onRemove: () => void;
+  onSelectMatch: (candidate: MatchCandidate) => void;
 }) {
+  const [showCandidates, setShowCandidates] = useState(false);
   return (
     <div
       className={cn(
@@ -266,13 +270,97 @@ function ImageItem({
               {formatFileSize(img.fileSize)}
             </p>
             {img.newFileName && (
-              <div className="mt-1 p-1.5 bg-green-100 rounded border border-green-200">
-                <p className="text-xs text-green-700 flex items-center gap-1" title={img.newFileName}>
-                  <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                  </svg>
-                  <span className="font-semibold truncate">{img.newFileName}</span>
-                </p>
+              <div className={cn(
+                'mt-1 p-1.5 rounded border',
+                img.isPartialMatch
+                  ? 'bg-orange-100 border-orange-200'
+                  : 'bg-green-100 border-green-200'
+              )}>
+                <div className="flex items-center justify-between gap-2">
+                  <p className={cn(
+                    'text-xs flex items-center gap-1 min-w-0',
+                    img.isPartialMatch ? 'text-orange-700' : 'text-green-700'
+                  )} title={img.newFileName}>
+                    <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                    <span className="font-semibold truncate">{img.newFileName}</span>
+                  </p>
+                  {/* 매칭 점수 표시 */}
+                  {img.matchScore !== undefined && (
+                    <span className={cn(
+                      'text-xs px-1.5 py-0.5 rounded-full flex-shrink-0',
+                      img.matchScore === 1.0
+                        ? 'bg-green-200 text-green-700'
+                        : 'bg-orange-200 text-orange-700'
+                    )}>
+                      {Math.round(img.matchScore * 100)}%
+                    </span>
+                  )}
+                </div>
+                {/* 다중 매칭 후보가 있는 경우 */}
+                {img.candidateMatches && img.candidateMatches.length > 1 && (
+                  <div className="mt-1.5">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowCandidates(!showCandidates);
+                      }}
+                      className="text-xs text-orange-600 hover:text-orange-800 flex items-center gap-1"
+                    >
+                      <svg
+                        className={cn('w-3 h-3 transition-transform', showCandidates && 'rotate-180')}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                      다른 매칭 후보 {img.candidateMatches.length - 1}개
+                    </button>
+                    {showCandidates && (
+                      <div className="mt-2 space-y-1.5 p-2 bg-white rounded border border-orange-200">
+                        {img.candidateMatches.map((candidate, idx) => (
+                          <div
+                            key={`${candidate.rule.id}-${idx}`}
+                            className={cn(
+                              'flex items-center justify-between gap-2 p-1.5 rounded text-xs',
+                              candidate.rule.id === img.matchedRule?.id
+                                ? 'bg-orange-100 border border-orange-300'
+                                : 'bg-gray-50 hover:bg-gray-100'
+                            )}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-gray-700 truncate">
+                                {candidate.rule.newFileName}
+                              </p>
+                              <p className="text-gray-500 truncate text-xs">
+                                {candidate.matchedTokens.length}/{candidate.totalTokens} 토큰 일치
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <span className="px-1.5 py-0.5 bg-orange-200 text-orange-700 rounded-full">
+                                {Math.round(candidate.matchScore * 100)}%
+                              </span>
+                              {candidate.rule.id !== img.matchedRule?.id && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onSelectMatch(candidate);
+                                    setShowCandidates(false);
+                                  }}
+                                  className="px-2 py-0.5 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors"
+                                >
+                                  선택
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -301,7 +389,7 @@ function ImageItem({
   );
 }
 
-export function ImageList({ images, onRemove, onRemoveMultiple, filterMode, onFilterChange }: ImageListProps) {
+export function ImageList({ images, onRemove, onRemoveMultiple, filterMode, onFilterChange, onSelectMatch }: ImageListProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -489,6 +577,7 @@ export function ImageList({ images, onRemove, onRemoveMultiple, filterMode, onFi
             isSelected={selectedIds.has(img.id)}
             onToggleSelect={() => toggleSelect(img.id)}
             onRemove={() => onRemove(img.id)}
+            onSelectMatch={(candidate) => onSelectMatch(img.id, candidate)}
           />
         ))}
       </div>

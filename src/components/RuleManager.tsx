@@ -1,14 +1,22 @@
 import { useState, useMemo, useRef } from 'react';
-import { KeywordRule, LIMITS } from '../types';
+import { KeywordRule, LIMITS, PartialMatchSettings, DEFAULT_PARTIAL_MATCH_SETTINGS } from '../types';
 import { cn } from '../utils/cn';
 
 interface RuleManagerProps {
   rules: KeywordRule[];
   onRulesChange: (rules: KeywordRule[]) => void;
   matchCounts: Map<string, number>;
+  partialMatchSettings: PartialMatchSettings;
+  onPartialMatchSettingsChange: (settings: PartialMatchSettings) => void;
 }
 
-export function RuleManager({ rules, onRulesChange, matchCounts }: RuleManagerProps) {
+export function RuleManager({
+  rules,
+  onRulesChange,
+  matchCounts,
+  partialMatchSettings,
+  onPartialMatchSettingsChange,
+}: RuleManagerProps) {
   const [keyword, setKeyword] = useState('');
   const [newFileName, setNewFileName] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,6 +24,7 @@ export function RuleManager({ rules, onRulesChange, matchCounts }: RuleManagerPr
   const [editKeyword, setEditKeyword] = useState('');
   const [editFileName, setEditFileName] = useState('');
   const [showAll, setShowAll] = useState(false);
+  const [showPartialMatchSettings, setShowPartialMatchSettings] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 파일명 정규화: 띄어쓰기 → _, 위험 문자 제거
@@ -247,6 +256,18 @@ export function RuleManager({ rules, onRulesChange, matchCounts }: RuleManagerPr
     onRulesChange(rules.map((r) => ({ ...r, enabled })));
   };
 
+  // 개별 규칙의 부분 매칭 토글
+  const toggleRulePartialMatch = (id: string) => {
+    onRulesChange(
+      rules.map((r) => (r.id === id ? { ...r, partialMatch: !r.partialMatch } : r))
+    );
+  };
+
+  // 전체 규칙의 부분 매칭 일괄 설정
+  const toggleAllPartialMatch = (partialMatch: boolean) => {
+    onRulesChange(rules.map((r) => ({ ...r, partialMatch })));
+  };
+
   const removeAllRules = () => {
     if (confirm('모든 규칙을 삭제하시겠습니까?')) {
       onRulesChange([]);
@@ -354,6 +375,144 @@ export function RuleManager({ rules, onRulesChange, matchCounts }: RuleManagerPr
           </button>
         </div>
       )}
+
+      {/* 부분 매칭 설정 */}
+      <div className="mb-3">
+        <button
+          onClick={() => setShowPartialMatchSettings(!showPartialMatchSettings)}
+          className={cn(
+            'w-full flex items-center justify-between p-2 rounded-lg border transition-colors',
+            partialMatchSettings.globalEnabled
+              ? 'bg-orange-50 border-orange-200 hover:bg-orange-100'
+              : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+          )}
+        >
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+            <span className="text-xs font-medium text-gray-700">
+              부분 매칭
+              {partialMatchSettings.globalEnabled && (
+                <span className="ml-1 text-orange-600">(전역 ON)</span>
+              )}
+            </span>
+          </div>
+          <svg
+            className={cn('w-4 h-4 text-gray-400 transition-transform', showPartialMatchSettings && 'rotate-180')}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {showPartialMatchSettings && (
+          <div className="mt-2 p-3 bg-orange-50 rounded-lg border border-orange-200 space-y-3">
+            {/* 전역 ON/OFF */}
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-gray-700">전역 부분 매칭</label>
+              <button
+                onClick={() =>
+                  onPartialMatchSettingsChange({
+                    ...partialMatchSettings,
+                    globalEnabled: !partialMatchSettings.globalEnabled,
+                  })
+                }
+                className={cn(
+                  'relative w-10 h-5 rounded-full transition-colors',
+                  partialMatchSettings.globalEnabled ? 'bg-orange-500' : 'bg-gray-300'
+                )}
+              >
+                <span
+                  className={cn(
+                    'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
+                    partialMatchSettings.globalEnabled ? 'translate-x-5' : 'translate-x-0.5'
+                  )}
+                />
+              </button>
+            </div>
+
+            {/* 최소 일치율 */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs text-gray-700">최소 일치율</label>
+                <span className="text-xs font-medium text-orange-600">
+                  {Math.round(partialMatchSettings.minMatchRatio * 100)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0.1"
+                max="0.99"
+                step="0.05"
+                value={partialMatchSettings.minMatchRatio}
+                onChange={(e) =>
+                  onPartialMatchSettingsChange({
+                    ...partialMatchSettings,
+                    minMatchRatio: parseFloat(e.target.value),
+                  })
+                }
+                className="w-full h-2 bg-orange-200 rounded-lg appearance-none cursor-pointer accent-orange-500"
+              />
+              <div className="flex justify-between text-xs text-gray-400 mt-1">
+                <span>10%</span>
+                <span>99%</span>
+              </div>
+            </div>
+
+            {/* 토큰 구분자 */}
+            <div>
+              <label className="text-xs text-gray-700 block mb-1">토큰 구분자</label>
+              <input
+                type="text"
+                value={partialMatchSettings.tokenSeparator}
+                onChange={(e) =>
+                  onPartialMatchSettingsChange({
+                    ...partialMatchSettings,
+                    tokenSeparator: e.target.value || ',',
+                  })
+                }
+                className="w-full px-2 py-1 text-xs border border-orange-200 rounded focus:ring-1 focus:ring-orange-400 outline-none"
+                placeholder=","
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                키워드를 분리할 문자 (기본: 쉼표)
+              </p>
+            </div>
+
+            {/* 개별 규칙 부분 매칭 일괄 설정 */}
+            {rules.length > 0 && (
+              <div className="pt-2 border-t border-orange-200">
+                <p className="text-xs text-gray-600 mb-2">개별 규칙 부분 매칭</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => toggleAllPartialMatch(true)}
+                    className="flex-1 px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200"
+                  >
+                    모두 ON
+                  </button>
+                  <button
+                    onClick={() => toggleAllPartialMatch(false)}
+                    className="flex-1 px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
+                  >
+                    모두 OFF
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 설명 */}
+            <div className="pt-2 border-t border-orange-200">
+              <p className="text-xs text-gray-500">
+                💡 부분 매칭이 켜지면 키워드 토큰 중 일부만 일치해도 매칭됩니다.
+                전역 ON 시 모든 규칙에 적용되고, 개별 설정으로 규칙별 ON/OFF가 가능합니다.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* 새 규칙 추가 */}
       <div className="space-y-2 mb-3">
@@ -495,6 +654,22 @@ export function RuleManager({ rules, onRulesChange, matchCounts }: RuleManagerPr
                             {matchCount}개 매칭
                           </span>
                         )}
+                        {/* 개별 부분 매칭 토글 */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleRulePartialMatch(rule.id);
+                          }}
+                          className={cn(
+                            'text-xs px-1.5 py-0.5 rounded-full transition-colors',
+                            rule.partialMatch
+                              ? 'bg-orange-100 text-orange-600 hover:bg-orange-200'
+                              : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                          )}
+                          title={rule.partialMatch ? '부분 매칭 ON' : '부분 매칭 OFF'}
+                        >
+                          {rule.partialMatch ? '부분' : '전체'}
+                        </button>
                       </div>
                     </div>
 
