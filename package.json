@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vite build && node scripts/postbuild.js",
     "build:dev": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
     "@types/file-saver": "^2.0.7",
@@ -21,6 +24,8 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.1.17",
+    "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/cli": "^2.10.0",
     "@types/node": "^22.0.0",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",

@@ -1,0 +1,54 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "File Name Converter",
+  "version": "1.0.0",
+  "identifier": "com.jacha00.file-name-converter",
+  "build": {
+    "beforeBuildCommand": "npm run build:dev",
+    "beforeDevCommand": "npm run dev",
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5173"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "File Name Converter",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [],
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    },
+    "shortDescription": "Image metadata-based file name converter",
+    "longDescription": "Batch rename image files based on metadata keywords. Extract prompts from AI-generated images and organize files automatically."
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    },
+    "fs": {
+      "scope": ["$DOWNLOAD", "$DOCUMENT", "$PICTURE", "**"]
+    },
+    "dialog": {
+      "open": true,
+      "save": true
+    }
+  }
+}
