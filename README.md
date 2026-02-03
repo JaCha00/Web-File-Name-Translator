@@ -2,7 +2,7 @@
 
 Batch rename image files based on metadata keywords.
 
-A web application that extracts metadata from AI-generated images (Stable Diffusion, etc.) and automatically renames files based on keyword matching rules.
+A web application that extracts metadata from AI-generated images (Stable Diffusion, NAI, etc.) and automatically renames files based on keyword matching rules.
 
 [한국어 문서](README.kr.md)
 
