@@ -1,113 +1,115 @@
 # Web File Name Converter
 
-이미지 메타데이터 기반 파일명 일괄 변환기
+Batch rename image files based on metadata keywords.
 
-AI 생성 이미지(Stable Diffusion 등)의 메타데이터에서 키워드를 추출하여 파일명을 자동으로 변경하고 ZIP으로 다운로드할 수 있는 웹 애플리케이션입니다.
+A web application that extracts metadata from AI-generated images (Stable Diffusion, etc.) and automatically renames files based on keyword matching rules.
 
-## 주요 기능
+[한국어 문서](README.kr.md)
 
-- **메타데이터 추출**: PNG 텍스트 청크, EXIF, XMP, IPTC 메타데이터 지원
-- **키워드 매칭**: 메타데이터에서 키워드를 검색하여 파일명 자동 변경
-- **부분 매칭**: 쉼표로 구분된 토큰 기반 부분 일치 지원 (일치율 설정 가능)
-- **대용량 처리**: 최대 3,000개 이미지, 6GB까지 처리 가능
-- **일괄 다운로드**: 100개 단위로 ZIP 파일 생성
-- **오프라인 사용**: 빌드된 HTML 파일 하나로 로컬에서 실행 가능
+## Features
 
-## 설치 방법
+- **Metadata Extraction**: Supports PNG text chunks, EXIF, XMP, and IPTC metadata
+- **Keyword Matching**: Search metadata for keywords and rename files automatically
+- **Partial Matching**: Token-based partial matching with configurable match ratio
+- **Large Scale Processing**: Handle up to 3,000 images, 6GB total
+- **Batch Download**: Generate ZIP files in batches of 100
+- **Offline Use**: Run locally with a single HTML file - no server required
 
-### 요구 사항
+## Installation
 
-- [Node.js](https://nodejs.org/) 18 이상
+### Requirements
 
-### 설치 및 빌드
+- [Node.js](https://nodejs.org/) 18 or higher
+
+### Build
 
 ```bash
-# 저장소 클론
-git clone https://github.com/JaCha00/Web-File-Name-Translator.git
-cd Web-File-Name-Translator
+# Clone repository
+git clone https://github.com/JaCha00/Web-File-Name-Converter.git
+cd Web-File-Name-Converter
 
-# 의존성 설치
+# Install dependencies
 npm install
 
-# 프로덕션 빌드
+# Production build
 npm run build
 ```
 
-### 실행
+### Run
 
-빌드 완료 후 `dist/index.html` 파일을 브라우저에서 직접 열면 됩니다.
+After building, open `dist/index.html` directly in your browser.
 
-> **참고**: 별도의 웹 서버 없이 파일을 더블클릭하여 실행할 수 있습니다.
+> **Note**: No web server needed - just double-click the HTML file to run.
 
-## 사용 방법
+## Usage
 
-### 1. 규칙 생성
+### 1. Create Rules
 
-1. 왼쪽 패널에서 **키워드**와 **새 파일명**을 입력
-2. `규칙 추가` 버튼 클릭
-3. 또는 TXT 파일로 규칙 일괄 가져오기 (`#파일명` + 줄바꿈 + `키워드` 형식)
+1. Enter a **keyword** and **new filename** in the left panel
+2. Click `Add Rule`
+3. Or import rules from a TXT file (`#filename` + newline + `keyword` format)
 
-### 2. 이미지 업로드
+### 2. Upload Images
 
-1. 오른쪽 패널의 드롭존에 이미지 드래그 앤 드롭
-2. 또는 클릭하여 파일 선택
+1. Drag and drop images onto the drop zone
+2. Or click to select files
 
-### 3. 매칭 및 다운로드
+### 3. Match and Download
 
-1. `규칙 적용` 버튼으로 키워드 매칭 실행
-2. 매칭된 이미지 확인 (녹색: 완전 일치, 주황색: 부분 일치)
-3. `매칭된 이미지 다운로드` 버튼으로 ZIP 다운로드
+1. Click `Apply Rules` to run keyword matching
+2. Review matched images (green: exact match, orange: partial match)
+3. Click `Download Matched Images` to download as ZIP
 
-## 부분 매칭 기능
+## Partial Matching
 
-키워드를 쉼표로 구분하여 부분 일치를 검사합니다.
+Keywords are split by comma and checked for partial matches.
 
 ```
-키워드: "white background, standing, full body, 1girl"
-         ↓ 쉼표로 분리
+Keyword: "white background, standing, full body, 1girl"
+         ↓ Split by comma
 ["white background", "standing", "full body", "1girl"]
          ↓
-메타데이터에서 각 토큰 검색
+Search each token in metadata
          ↓
-3/4 토큰 일치 → 75% 일치율
+3/4 tokens matched → 75% match ratio
          ↓
-최소 일치율(기본 70%) 이상이면 매칭 성공
+If ≥ minimum ratio (default 70%), match succeeds
 ```
 
-### 설정
+### Settings
 
-- **전역 부분 매칭 ON/OFF**: 모든 규칙에 부분 매칭 적용
-- **최소 일치율**: 10% ~ 99% (기본 70%)
-- **개별 규칙 토글**: 규칙별로 부분 매칭 활성화/비활성화
+- **Global Partial Matching**: Enable/disable for all rules
+- **Minimum Match Ratio**: 10% ~ 99% (default 70%)
+- **Per-Rule Toggle**: Enable/disable partial matching per rule
 
-## 개발
+## Development
 
 ```bash
-# 개발 서버 실행
+# Start dev server
 npm run dev
 
-# 타입 체크 없이 빌드
+# Build without type checking
 npm run build:dev
 ```
 
-## 기술 스택
+## Tech Stack
 
 - React 19
 - TypeScript
 - Vite
 - Tailwind CSS
-- exifr (메타데이터 파싱)
-- JSZip (ZIP 생성)
+- exifr (metadata parsing)
+- JSZip (ZIP generation)
 
-## 제한 사항
+## Limitations
 
-| 항목 | 제한 |
-|------|------|
-| 최대 이미지 수 | 3,000개 |
-| 개별 파일 크기 | 10MB |
-| 총 용량 | 6GB |
-| ZIP 배치 크기 | 100개 |
+| Item | Limit |
+|------|-------|
+| Max images | 3,000 |
+| Max file size | 10MB |
+| Total size | 6GB |
+| ZIP batch size | 100 |
 
-## 라이선스
+## License
 
 MIT License
