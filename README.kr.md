@@ -2,7 +2,7 @@
 
 이미지 메타데이터 기반 파일명 일괄 변환기
 
-이미지의 메타데이터에서 키워드를 추출하여 파일명을 자동으로 변경하고 ZIP으로 다운로드할 수 있는 웹 애플리케이션입니다.
+AI 생성 이미지(Stable Diffusion 등)의 메타데이터에서 키워드를 추출하여 파일명을 자동으로 변경하고 ZIP으로 다운로드할 수 있는 웹/데스크톱 애플리케이션입니다.
 
 ## 주요 기능
 
@@ -11,33 +11,56 @@
 - **부분 매칭**: 쉼표로 구분된 토큰 기반 부분 일치 지원 (일치율 설정 가능)
 - **대용량 처리**: 최대 3,000개 이미지, 6GB까지 처리 가능
 - **일괄 다운로드**: 100개 단위로 ZIP 파일 생성
-- **오프라인 사용**: 빌드된 HTML 파일 하나로 로컬에서 실행 가능
+- **데스크톱 앱**: Tauri 기반 Windows/Mac/Linux 네이티브 앱
+- **오프라인 사용**: 서버 없이 로컬에서 실행 가능
 
 ## 설치 방법
 
-### 요구 사항
+### 방법 1: 데스크톱 앱 (권장)
 
-- [Node.js](https://nodejs.org/) 18 이상
+[Releases](https://github.com/JaCha00/Web-File-Name-Converter/releases) 페이지에서 설치 파일 다운로드:
 
-### 설치 및 빌드
+| 플랫폼 | 파일 |
+|--------|------|
+| Windows | `File-Name-Converter_x.x.x_x64-setup.exe` |
+| macOS | `File-Name-Converter_x.x.x_x64.dmg` |
+| Linux | `File-Name-Converter_x.x.x_amd64.AppImage` |
+
+### 방법 2: 웹 버전 (브라우저)
 
 ```bash
 # 저장소 클론
-git clone https://github.com/JaCha00/Web-File-Name-Translator.git
-cd Web-File-Name-Translator
+git clone https://github.com/JaCha00/Web-File-Name-Converter.git
+cd Web-File-Name-Converter
 
 # 의존성 설치
 npm install
 
-# 프로덕션 빌드
+# 웹 빌드
 npm run build
 ```
 
-### 실행
+`dist/index.html` 파일을 브라우저에서 직접 열면 됩니다. 서버 불필요.
 
-빌드 완료 후 `dist/index.html` 파일을 브라우저에서 직접 열면 됩니다.
+### 방법 3: 데스크톱 앱 직접 빌드
 
-> **참고**: 별도의 웹 서버 없이 파일을 더블클릭하여 실행할 수 있습니다.
+#### 요구 사항
+
+- [Node.js](https://nodejs.org/) 18 이상
+- [Rust](https://rustup.rs/) (Tauri용)
+- Windows: Visual Studio Build Tools
+
+#### 빌드
+
+```bash
+git clone https://github.com/JaCha00/Web-File-Name-Converter.git
+cd Web-File-Name-Converter
+
+npm install
+npm run tauri:build
+```
+
+설치 파일이 `src-tauri/target/release/bundle/`에 생성됩니다.
 
 ## 사용 방법
 
@@ -83,19 +106,24 @@ npm run build
 ## 개발
 
 ```bash
-# 개발 서버 실행
+# 웹 개발 서버
 npm run dev
 
-# 타입 체크 없이 빌드
-npm run build:dev
+# 데스크톱 개발 모드
+npm run tauri:dev
+
+# 웹만 빌드
+npm run build
+
+# 데스크톱 앱 빌드
+npm run tauri:build
 ```
 
 ## 기술 스택
 
-- React 19
-- TypeScript
-- Vite
-- Tailwind CSS
+- React 19 + TypeScript
+- Vite + Tailwind CSS
+- Tauri v2 (데스크톱)
 - exifr (메타데이터 파싱)
 - JSZip (ZIP 생성)
 

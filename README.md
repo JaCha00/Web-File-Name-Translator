@@ -2,7 +2,7 @@
 
 Batch rename image files based on metadata keywords.
 
-A web application that extracts metadata from images and automatically renames files based on keyword matching rules.
+A web/desktop application that extracts metadata from AI-generated images (Stable Diffusion, etc.) and automatically renames files based on keyword matching rules.
 
 [한국어 문서](README.kr.md)
 
@@ -13,15 +13,22 @@ A web application that extracts metadata from images and automatically renames f
 - **Partial Matching**: Token-based partial matching with configurable match ratio
 - **Large Scale Processing**: Handle up to 3,000 images, 6GB total
 - **Batch Download**: Generate ZIP files in batches of 100
-- **Offline Use**: Run locally with a single HTML file - no server required
+- **Desktop App**: Native Windows/Mac/Linux app with Tauri
+- **Offline Use**: Run locally - no server required
 
 ## Installation
 
-### Requirements
+### Option 1: Desktop App (Recommended)
 
-- [Node.js](https://nodejs.org/) 18 or higher
+Download the installer from [Releases](https://github.com/JaCha00/Web-File-Name-Converter/releases):
 
-### Build
+| Platform | File |
+|----------|------|
+| Windows | `File-Name-Converter_x.x.x_x64-setup.exe` |
+| macOS | `File-Name-Converter_x.x.x_x64.dmg` |
+| Linux | `File-Name-Converter_x.x.x_amd64.AppImage` |
+
+### Option 2: Web Version (Browser)
 
 ```bash
 # Clone repository
@@ -31,15 +38,31 @@ cd Web-File-Name-Converter
 # Install dependencies
 npm install
 
-# Production build
+# Build for web
 npm run build
 ```
 
-### Run
+Open `dist/index.html` in your browser. No server needed.
 
-After building, open `dist/index.html` directly in your browser.
+### Option 3: Build Desktop App from Source
 
-> **Note**: No web server needed - just double-click the HTML file to run.
+#### Requirements
+
+- [Node.js](https://nodejs.org/) 18+
+- [Rust](https://rustup.rs/) (for Tauri)
+- Windows: Visual Studio Build Tools
+
+#### Build
+
+```bash
+git clone https://github.com/JaCha00/Web-File-Name-Converter.git
+cd Web-File-Name-Converter
+
+npm install
+npm run tauri:build
+```
+
+Installer will be generated in `src-tauri/target/release/bundle/`.
 
 ## Usage
 
@@ -85,19 +108,24 @@ If ≥ minimum ratio (default 70%), match succeeds
 ## Development
 
 ```bash
-# Start dev server
+# Web dev server
 npm run dev
 
-# Build without type checking
-npm run build:dev
+# Desktop dev mode
+npm run tauri:dev
+
+# Build web only
+npm run build
+
+# Build desktop app
+npm run tauri:build
 ```
 
 ## Tech Stack
 
-- React 19
-- TypeScript
-- Vite
-- Tailwind CSS
+- React 19 + TypeScript
+- Vite + Tailwind CSS
+- Tauri v2 (Desktop)
 - exifr (metadata parsing)
 - JSZip (ZIP generation)
 
