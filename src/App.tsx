@@ -5,7 +5,7 @@ import { DropZone } from './components/DropZone';
 import { RuleManager } from './components/RuleManager';
 import { ImageList } from './components/ImageList';
 import { useImageProcessor } from './hooks/useImageProcessor';
-import { KeywordRule, FilterMode, LIMITS, ProcessingProgress, PartialMatchSettings, DEFAULT_PARTIAL_MATCH_SETTINGS, MatchCandidate } from './types';
+import { KeywordRule, FilterMode, LIMITS, ProcessingProgress, PartialMatchSettings, DEFAULT_PARTIAL_MATCH_SETTINGS } from './types';
 import { formatFileSize } from './utils/thumbnail';
 import { logger } from './utils/logger';
 
