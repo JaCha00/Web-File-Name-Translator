@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
-import { KeywordRule, LIMITS, PartialMatchSettings, DEFAULT_PARTIAL_MATCH_SETTINGS } from '../types';
+import { KeywordRule, LIMITS, PartialMatchSettings } from '../types';
 import { cn } from '../utils/cn';
 
 interface RuleManagerProps {
