@@ -421,14 +421,14 @@ export function RuleManager({
                   })
                 }
                 className={cn(
-                  'relative w-10 h-5 rounded-full transition-colors',
+                  'relative w-10 h-5 rounded-full transition-colors flex-shrink-0',
                   partialMatchSettings.globalEnabled ? 'bg-orange-500' : 'bg-gray-300'
                 )}
               >
                 <span
                   className={cn(
-                    'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
-                    partialMatchSettings.globalEnabled ? 'translate-x-5' : 'translate-x-0.5'
+                    'absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-all duration-200',
+                    partialMatchSettings.globalEnabled ? 'translate-x-5' : 'translate-x-0'
                   )}
                 />
               </button>

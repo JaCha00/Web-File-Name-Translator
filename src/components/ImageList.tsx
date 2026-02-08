@@ -16,14 +16,14 @@ interface ImageListProps {
 const ITEMS_PER_PAGE = 50;
 
 // 개별 메타데이터 필드 컴포넌트
-function MetadataField({ 
-  fieldKey, 
-  value, 
-  isMatched, 
-  matchedKeyword 
-}: { 
-  fieldKey: string; 
-  value: string; 
+function MetadataField({
+  fieldKey,
+  value,
+  isMatched,
+  matchedKeyword
+}: {
+  fieldKey: string;
+  value: string;
   isMatched: boolean;
   matchedKeyword: string | null;
 }) {
@@ -35,11 +35,11 @@ function MetadataField({
     if (!keyword) return text;
     const index = text.indexOf(keyword);
     if (index === -1) return text;
-    
+
     const before = text.slice(Math.max(0, index - 30), index);
     const match = keyword;
     const after = text.slice(index + keyword.length, index + keyword.length + 30);
-    
+
     return (
       <>
         {index > 30 && '...'}
@@ -58,11 +58,11 @@ function MetadataField({
         const parts: React.ReactNode[] = [];
         let lastIndex = 0;
         let searchIndex = 0;
-        
+
         while (true) {
           const index = value.indexOf(matchedKeyword, searchIndex);
           if (index === -1) break;
-          
+
           if (index > lastIndex) {
             parts.push(value.slice(lastIndex, index));
           }
@@ -74,11 +74,11 @@ function MetadataField({
           lastIndex = index + matchedKeyword.length;
           searchIndex = lastIndex;
         }
-        
+
         if (lastIndex < value.length) {
           parts.push(value.slice(lastIndex));
         }
-        
+
         return parts.length > 0 ? parts : value;
       } else {
         return highlightKeyword(value, matchedKeyword);
@@ -92,12 +92,18 @@ function MetadataField({
     }
   };
 
+  const handleToggleExpand = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsExpanded(prev => !prev);
+  };
+
   return (
     <div
       className={cn(
         'text-xs rounded p-1.5 border',
-        isMatched 
-          ? 'bg-yellow-50 border-yellow-300' 
+        isMatched
+          ? 'bg-yellow-50 border-yellow-300'
           : 'bg-gray-50 border-gray-200'
       )}
     >
@@ -107,14 +113,12 @@ function MetadataField({
         </span>
         {isLongText && (
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsExpanded(!isExpanded);
-            }}
+            type="button"
+            onClick={handleToggleExpand}
             className={cn(
-              'text-xs px-1.5 py-0.5 rounded flex-shrink-0 transition-colors',
-              isExpanded 
-                ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
+              'text-xs px-1.5 py-0.5 rounded flex-shrink-0 transition-colors cursor-pointer select-none z-10',
+              isExpanded
+                ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
                 : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
             )}
           >
@@ -122,7 +126,7 @@ function MetadataField({
           </button>
         )}
       </div>
-      <div 
+      <div
         className={cn(
           'text-gray-600 break-all whitespace-pre-wrap mt-1',
           isExpanded ? 'max-h-60 overflow-y-auto' : ''
@@ -173,11 +177,13 @@ function MetadataViewer({ metadata, matchedField, matchedKeyword }: {
       </div>
       {entries.length > 2 && (
         <button
+          type="button"
           onClick={(e) => {
+            e.preventDefault();
             e.stopPropagation();
-            setShowAllFields(!showAllFields);
+            setShowAllFields(prev => !prev);
           }}
-          className="text-xs text-blue-600 hover:text-blue-800 mt-1.5 font-medium flex items-center gap-1"
+          className="text-xs text-blue-600 hover:text-blue-800 mt-1.5 font-medium flex items-center gap-1 cursor-pointer select-none z-10"
         >
           {showAllFields ? (
             <>
@@ -302,11 +308,13 @@ function ImageItem({
                 {img.candidateMatches && img.candidateMatches.length > 1 && (
                   <div className="mt-1.5">
                     <button
+                      type="button"
                       onClick={(e) => {
+                        e.preventDefault();
                         e.stopPropagation();
-                        setShowCandidates(!showCandidates);
+                        setShowCandidates(prev => !prev);
                       }}
-                      className="text-xs text-orange-600 hover:text-orange-800 flex items-center gap-1"
+                      className="text-xs text-orange-600 hover:text-orange-800 flex items-center gap-1 cursor-pointer select-none"
                     >
                       <svg
                         className={cn('w-3 h-3 transition-transform', showCandidates && 'rotate-180')}
@@ -319,44 +327,69 @@ function ImageItem({
                       다른 매칭 후보 {img.candidateMatches.length - 1}개
                     </button>
                     {showCandidates && (
-                      <div className="mt-2 space-y-1.5 p-2 bg-white rounded border border-orange-200">
-                        {img.candidateMatches.map((candidate, idx) => (
-                          <div
-                            key={`${candidate.rule.id}-${idx}`}
-                            className={cn(
-                              'flex items-center justify-between gap-2 p-1.5 rounded text-xs',
-                              candidate.rule.id === img.matchedRule?.id
-                                ? 'bg-orange-100 border border-orange-300'
-                                : 'bg-gray-50 hover:bg-gray-100'
-                            )}
-                          >
-                            <div className="min-w-0 flex-1">
-                              <p className="font-medium text-gray-700 truncate">
-                                {candidate.rule.newFileName}
-                              </p>
-                              <p className="text-gray-500 truncate text-xs">
-                                {candidate.matchedTokens.length}/{candidate.totalTokens} 토큰 일치
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-1 flex-shrink-0">
-                              <span className="px-1.5 py-0.5 bg-orange-200 text-orange-700 rounded-full">
-                                {Math.round(candidate.matchScore * 100)}%
-                              </span>
-                              {candidate.rule.id !== img.matchedRule?.id && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onSelectMatch(candidate);
-                                    setShowCandidates(false);
-                                  }}
-                                  className="px-2 py-0.5 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors"
-                                >
-                                  선택
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                      <div className="mt-2 p-2 bg-white rounded border border-orange-200 max-h-64 overflow-y-auto">
+                        <div className="text-xs text-gray-500 mb-2 pb-1 border-b border-gray-100">
+                          매칭 후보 (점수순 정렬)
+                        </div>
+                        <div className="space-y-1.5">
+                          {img.candidateMatches.map((candidate) => {
+                            const isSelected = candidate.rule.id === img.matchedRule?.id;
+                            return (
+                              <div
+                                key={candidate.rule.id}
+                                className={cn(
+                                  'flex items-center justify-between gap-2 p-2 rounded text-xs transition-colors',
+                                  isSelected
+                                    ? 'bg-orange-100 border border-orange-300'
+                                    : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
+                                )}
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5">
+                                    {isSelected && (
+                                      <span className="w-2 h-2 bg-orange-500 rounded-full flex-shrink-0" />
+                                    )}
+                                    <p className="font-medium text-gray-700 truncate">
+                                      {candidate.rule.newFileName}
+                                    </p>
+                                  </div>
+                                  <p className="text-gray-500 mt-0.5">
+                                    {candidate.matchedTokens.length}/{candidate.totalTokens} 토큰 일치
+                                    <span className="text-gray-400 ml-1">
+                                      ({candidate.matchedField})
+                                    </span>
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                  <span className={cn(
+                                    'px-2 py-0.5 rounded-full font-medium',
+                                    candidate.matchScore >= 0.9
+                                      ? 'bg-green-100 text-green-700'
+                                      : candidate.matchScore >= 0.8
+                                        ? 'bg-orange-100 text-orange-700'
+                                        : 'bg-yellow-100 text-yellow-700'
+                                  )}>
+                                    {Math.round(candidate.matchScore * 100)}%
+                                  </span>
+                                  {!isSelected && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        onSelectMatch(candidate);
+                                        setShowCandidates(false);
+                                      }}
+                                      className="px-2 py-1 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors font-medium"
+                                    >
+                                      선택
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -489,7 +522,7 @@ export function ImageList({ images, onRemove, onRemoveMultiple, filterMode, onFi
   }
 
   return (
-    <div className="flex flex-col" style={{ height: 'calc(100vh - 200px)', minHeight: '500px' }}>
+    <div className="flex flex-col h-full max-h-[calc(100vh-200px)] min-h-[500px]">
       {/* 필터 탭 */}
       <div className="flex flex-wrap items-center gap-2 mb-3 pb-3 border-b border-gray-200">
         <div className="flex gap-1">

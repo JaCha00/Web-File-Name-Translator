@@ -1,9 +1,13 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { cn } from '../utils/cn';
 import { ProcessingProgress, LIMITS } from '../types';
+import { logger } from '../utils/logger';
+
+// Check if running in Tauri environment
+const isTauri = () => typeof window !== 'undefined' && '__TAURI__' in window;
 
 interface DropZoneProps {
-  onFilesDropped: (files: FileList) => void;
+  onFilesDropped: (files: FileList | File[]) => void;
   isProcessing: boolean;
   progress: ProcessingProgress | null;
   currentCount: number;
@@ -11,6 +15,80 @@ interface DropZoneProps {
 
 export function DropZone({ onFilesDropped, isProcessing, progress, currentCount }: DropZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
+
+  // Tauri drag-drop event listener
+  useEffect(() => {
+    if (!isTauri()) return;
+
+    const setupTauriDragDrop = async () => {
+      try {
+        const { listen } = await import('@tauri-apps/api/event');
+
+        // Listen for file drop events
+        const unlisten = await listen<{ paths: string[] }>('tauri://drag-drop', async (event) => {
+          logger.info('DropZone', 'Tauri drag-drop event received', event.payload);
+
+          const paths = event.payload.paths;
+          if (paths && paths.length > 0) {
+            // Filter for image files
+            const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp'];
+            const imagePaths = paths.filter(path =>
+              imageExtensions.some(ext => path.toLowerCase().endsWith(ext))
+            );
+
+            if (imagePaths.length > 0) {
+              // Convert paths to File objects
+              const files: File[] = [];
+              for (const filePath of imagePaths) {
+                try {
+                  const { readFile } = await import('@tauri-apps/plugin-fs');
+                  const contents = await readFile(filePath);
+                  const fileName = filePath.split(/[\\/]/).pop() || 'image';
+                  const ext = fileName.split('.').pop()?.toLowerCase() || 'png';
+                  const mimeType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : `image/${ext}`;
+
+                  const blob = new Blob([contents], { type: mimeType });
+                  const file = new File([blob], fileName, { type: mimeType });
+                  files.push(file);
+                  logger.debug('DropZone', `Loaded file: ${fileName}`, { size: file.size });
+                } catch (err) {
+                  logger.error('DropZone', `Failed to read file: ${filePath}`, err);
+                }
+              }
+
+              if (files.length > 0) {
+                onFilesDropped(files);
+              }
+            }
+          }
+        });
+
+        // Listen for drag enter/leave for visual feedback
+        const unlistenEnter = await listen('tauri://drag-enter', () => {
+          setIsDragging(true);
+        });
+
+        const unlistenLeave = await listen('tauri://drag-leave', () => {
+          setIsDragging(false);
+        });
+
+        logger.info('DropZone', 'Tauri drag-drop listeners registered');
+
+        return () => {
+          unlisten();
+          unlistenEnter();
+          unlistenLeave();
+        };
+      } catch (err) {
+        logger.error('DropZone', 'Failed to setup Tauri drag-drop', err);
+      }
+    };
+
+    const cleanup = setupTauriDragDrop();
+    return () => {
+      cleanup.then(fn => fn?.());
+    };
+  }, [onFilesDropped]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -27,6 +105,7 @@ export function DropZone({ onFilesDropped, isProcessing, progress, currentCount 
       e.preventDefault();
       setIsDragging(false);
       if (e.dataTransfer.files.length > 0) {
+        logger.info('DropZone', `Web drop: ${e.dataTransfer.files.length} files`);
         onFilesDropped(e.dataTransfer.files);
       }
     },
@@ -36,6 +115,7 @@ export function DropZone({ onFilesDropped, isProcessing, progress, currentCount 
   const handleFileInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files.length > 0) {
+        logger.info('DropZone', `File input: ${e.target.files.length} files`);
         onFilesDropped(e.target.files);
         e.target.value = '';
       }

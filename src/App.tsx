@@ -7,6 +7,10 @@ import { ImageList } from './components/ImageList';
 import { useImageProcessor } from './hooks/useImageProcessor';
 import { KeywordRule, FilterMode, LIMITS, ProcessingProgress, PartialMatchSettings, DEFAULT_PARTIAL_MATCH_SETTINGS, MatchCandidate } from './types';
 import { formatFileSize } from './utils/thumbnail';
+import { logger } from './utils/logger';
+
+// Check if running in Tauri environment
+const isTauri = () => typeof window !== 'undefined' && '__TAURI__' in window;
 
 const STORAGE_KEY = 'image-renamer-rules-v2';
 const PARTIAL_MATCH_STORAGE_KEY = 'image-renamer-partial-match-settings';
@@ -163,11 +167,35 @@ export function App() {
           }
         );
 
-        const fileName = totalBatches > 1
+        const defaultFileName = totalBatches > 1
           ? `renamed_images_batch${batch + 1}_${Date.now()}.zip`
           : `renamed_images_${Date.now()}.zip`;
-        
-        saveAs(content, fileName);
+
+        // Use Tauri save dialog if in Tauri environment
+        if (isTauri()) {
+          try {
+            const { save } = await import('@tauri-apps/plugin-dialog');
+            const { writeFile } = await import('@tauri-apps/plugin-fs');
+
+            const savePath = await save({
+              defaultPath: defaultFileName,
+              filters: [{ name: 'ZIP Archive', extensions: ['zip'] }],
+            });
+
+            if (savePath) {
+              const arrayBuffer = await content.arrayBuffer();
+              await writeFile(savePath, new Uint8Array(arrayBuffer));
+              logger.info('Download', `Saved to: ${savePath}`);
+            } else {
+              logger.info('Download', 'Save cancelled by user');
+            }
+          } catch (err) {
+            logger.error('Download', 'Tauri save failed, falling back to web', err);
+            saveAs(content, defaultFileName);
+          }
+        } else {
+          saveAs(content, defaultFileName);
+        }
 
         // 배치 간 대기
         if (batch < totalBatches - 1) {
@@ -348,7 +376,7 @@ export function App() {
           </div>
 
           {/* 우측: 이미지 목록 (3/5) */}
-          <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+          <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 p-4 shadow-sm overflow-hidden">
             <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
               <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />

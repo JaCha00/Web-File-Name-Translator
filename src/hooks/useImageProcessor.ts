@@ -3,6 +3,7 @@ import exifr from 'exifr';
 import { ImageFile, KeywordRule, ProcessingProgress, LIMITS, PartialMatchSettings, MatchCandidate } from '../types';
 import { parsePngTextChunks } from '../utils/pngParser';
 import { createThumbnail } from '../utils/thumbnail';
+import { logger } from '../utils/logger';
 
 // 키워드를 토큰으로 분리
 const tokenizeKeyword = (keyword: string, separator: string): string[] => {
@@ -192,6 +193,8 @@ export function useImageProcessor() {
     rules: KeywordRule[],
     partialMatchSettings?: PartialMatchSettings
   ) => {
+    logger.info('Matching', `Applying ${rules.length} rules with partial match: ${partialMatchSettings?.globalEnabled}`);
+
     setImages((prev) =>
       prev.map((img) => {
         const metadataEntries = Object.entries(img.metadata);
@@ -293,10 +296,26 @@ export function useImageProcessor() {
           // 점수 순으로 정렬 (높은 점수 우선)
           allCandidates.sort((a, b) => b.matchScore - a.matchScore);
 
+          // 동일한 규칙의 중복 제거 (가장 높은 점수만 유지)
+          const uniqueCandidates: MatchCandidate[] = [];
+          const seenRuleIds = new Set<string>();
+          for (const candidate of allCandidates) {
+            if (!seenRuleIds.has(candidate.rule.id)) {
+              seenRuleIds.add(candidate.rule.id);
+              uniqueCandidates.push(candidate);
+            }
+          }
+
           // 가장 높은 점수의 후보를 기본 매칭으로 설정
-          const bestMatch = allCandidates[0];
+          const bestMatch = uniqueCandidates[0];
           const ext = img.originalName.split('.').pop() || 'jpg';
           const baseName = bestMatch.rule.newFileName.replace(/\.[^.]+$/, '');
+
+          logger.debug('Matching', `Partial match found for ${img.originalName}`, {
+            bestMatch: bestMatch.rule.newFileName,
+            score: bestMatch.matchScore,
+            candidates: uniqueCandidates.length,
+          });
 
           return {
             ...img,
@@ -304,7 +323,7 @@ export function useImageProcessor() {
             matchedField: bestMatch.matchedField,
             newFileName: `${baseName}.${ext}`,
             matchScore: bestMatch.matchScore,
-            candidateMatches: allCandidates.length > 1 ? allCandidates : undefined,
+            candidateMatches: uniqueCandidates.length > 1 ? uniqueCandidates : undefined,
             isPartialMatch: true,
           };
         }

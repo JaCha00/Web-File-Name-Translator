@@ -31,6 +31,13 @@ export default defineConfig({
             format: "iife",
             inlineDynamicImports: true,
           },
+          // Externalize Tauri modules for web build
+          external: [
+            "@tauri-apps/api",
+            "@tauri-apps/api/event",
+            "@tauri-apps/plugin-dialog",
+            "@tauri-apps/plugin-fs",
+          ],
         },
       },
   resolve: {
